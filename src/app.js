@@ -9,6 +9,7 @@ const connectDB = require('./config/db');
 const redis = require('./config/redis');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
+const orderRoutes = require('./routes/orderRoutes');
 
 connectDB();
 
@@ -21,6 +22,7 @@ app.use(express.json());
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.use('/', (req, res) => {
     res.send('API rodando!');
