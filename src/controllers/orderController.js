@@ -5,7 +5,7 @@ const Product = require('../models/Product');
 exports.createOrder = async (req, res) => {
     const { orderItems } = req.body;
 
-    if (!orderItems || orderItems.lenngth === 0) {
+    if (!orderItems || orderItems.length === 0) {
         return res.status(400).json({ message: 'Nenhum item no pedido' });
     }
 
@@ -18,19 +18,17 @@ exports.createOrder = async (req, res) => {
             if (!product) {
                 return res.status(404).json({ message: `Produto não encontrado: ${item.product}` });
             }
-
-            if (item.stock > product.quantity) {
+            if (product.stock < item.quantity) {
                 return res.status(400).json({ message: `Estoque insuficiente para ${product.name}` });
             }
-
             totalPrice += product.price * item.quantity;
         }
 
         // Criar pedido
-        const order =  Order.create({
+        const order = await Order.create({
+            user: req.user._id,
             orderItems,
             totalPrice,
-            user: req.user._id,
         });
 
         // Atualizar estoque
@@ -59,7 +57,13 @@ exports.getMyOrders = async (req, res) => {
 // Listar todos os pedidos (admin)
 exports.getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find().populate('user', 'name email').populate('orderItems.product');
+        const orders = await Order.find({}).populate('user', 'name email').populate({
+            path: 'orderItems.product',
+            populate: {
+                path: 'category',
+                model: 'Category',
+            }
+        });
         res.json(orders);
     } catch (err) {
         res.status(500).json({ message: 'Erro ao listar pedidos', error: err.message });
