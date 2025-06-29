@@ -8,6 +8,7 @@ dotenv.config();
 const connectDB = require('./config/db');
 const redis = require('./config/redis');
 const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
 
 connectDB();
 
@@ -19,6 +20,7 @@ app.use(express.json());
 
 // Rotas
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
 
 app.use('/', (req, res) => {
     res.send('API rodando!');
