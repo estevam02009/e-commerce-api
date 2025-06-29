@@ -2,7 +2,7 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 
 // Criar pedido
-exports.craeteOrder = async (req, res) => {
+exports.createOrder = async (req, res) => {
     const { orderItems } = req.body;
 
     if (!orderItems || orderItems.lenngth === 0) {
