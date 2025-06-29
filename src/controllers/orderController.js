@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const stripe = require('../config/stripe');
 
 // Criar pedido
 exports.createOrder = async (req, res) => {
@@ -87,3 +88,74 @@ exports.updateOrderStatus = async (req, res) => {
         res.status(500).json({ message: 'Erro ao atualizar status do pedido', error: err.message });
     }
 };
+
+// Criar sessão sepagamento Stripe
+exports.createStripeSession = async (req, res) => {
+    const { orderId } = req.body;
+
+    try {
+        const order = await Order.findById(orderId).populate('orderItems.product');
+        if (!order) {
+            return res.status(404).json({ message: 'Pedido não encontrado' });
+        }
+
+        // Mapear produtos
+        const line_items = order.orderItems.map(item => ({
+            price_data: {
+                currency: 'brl',
+                productData: {
+                    name: item.name,
+                },
+                unit_amount: Math.round(item.price * 100), // Stripe usa centavos
+            },
+            quantity: item.quantity,
+        }));
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items,
+            mode: 'payment',
+            success_ur: `${process.env.CLIENT_URL}/success?order=${order._id}`,
+            cancel_url: `${process.env.CLIENT_URL}/cancel`,
+            metadata: {
+                orderId: order._id.toString(),
+            },
+        });
+
+        res.json({ url: session.url });
+    } catch (err) {
+        res.status(500).json({ message: 'Erro ao criar sessão se pagamento.', error: err.message });
+    }
+};
+
+// Webhook do Stripe
+exports.stripeWebhook = async (req, res) => {
+    const sig = req.headers['stripe-signature'];
+
+    let event;
+
+    try {
+        event = stripe.webhooks.constructEvent(
+            req.rawBody,
+            sig,
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+    } catch (err) {
+        console.error('Webhook error:', err.message);
+        return res.status(400).send(`Webhook error: ${err.message}`);
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const orderId = session.metadata.orderId;
+
+        try {
+            await Order.findByIdAndUpdate(orderId, { status: 'pago' });
+            console.log(`✔ Pedido ${orderId} marcado como pago.`);
+        } catch (err) {
+            console.error(`Erro ao atualizar pedido:`, err.message);
+        }
+    }
+
+    res.json({ received: true });
+}

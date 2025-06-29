@@ -10,6 +10,7 @@ const redis = require('./config/redis');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const { stripeWebhook  } = require('./controllers/orderController');
 
 connectDB();
 
@@ -23,6 +24,12 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+
+app.post(
+    '/api/orders/webhook',
+    express.raw({ type: 'application/json' }),
+    stripeWebhook
+);
 
 app.use('/', (req, res) => {
     res.send('API rodando!');
